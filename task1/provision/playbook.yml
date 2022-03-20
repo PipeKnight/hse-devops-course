@@ -1,0 +1,25 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Install prerequisites
+      apt: name={{ item }} update_cache=yes state=latest force_apt_get=yes
+      loop: [ 'aptitude' ]
+
+    - name: Install Ubuntu deps
+      script: bootstrap.sh
+
+    - name: Install a list of apt packages
+      apt:
+        update_cache: yes
+        state: latest
+        pkg:
+        - apache2
+        - apache2-utils
+        - libapache2-mod-wsgi
+        - libexpat1
+        - ssl-cert
+        - libapache2-mod-uwsgi
+        - python-pip
+
+    - name: Install Python packages and remaining actions
+      script: post_script.sh
