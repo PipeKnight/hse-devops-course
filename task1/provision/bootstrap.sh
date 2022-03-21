@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Build and populate the VM: install and/or compile the necessary
-# tools needed to run the templateproject Flask application with Apache and mod_uwsgi.
+# tools needed to run the minimal Flask application with Apache and mod_uwsgi.
 #
 # This script is automatically run the *first time* you issue the command:
 #
@@ -11,10 +11,10 @@
 # Some convenience variables
 LOG_BASE=/var/log
 WWW_ROOT=/var/www
-PROJECT_ROOT="$WWW_ROOT/templateproject"
-PROJECT_TARGET="$PROJECT_ROOT/templateproject"
+MINIMAL_ROOT="$WWW_ROOT/minimal"
+MINIMAL_TARGET="$MINIMAL_ROOT/minimal"
 SOURCE_ROOT="/vagrant"
-PROJECT_SOURCE="$SOURCE_ROOT/templateproject"
+MINIMAL_SOURCE="$SOURCE_ROOT/minimal"
 
 #--- FUNCTION ----------------------------------------------------------------
 # NAME: __function_defined
@@ -139,19 +139,19 @@ __enable_universe_repository() {
 install_ubuntu_deps() {
 
     echoinfo "Updating your APT Repositories ... "
-    apt-get update >> $LOG_BASE/templateproject-install.log 2>&1 || return 1
+    apt-get update >> $LOG_BASE/minimal-install.log 2>&1 || return 1
 
     echoinfo "Installing Python Software Properies ... "
-    __apt_get_install_noinput software-properties-common >> $LOG_BASE/templateproject-install.log 2>&1  || return 1
+    __apt_get_install_noinput software-properties-common >> $LOG_BASE/minimal-install.log 2>&1  || return 1
 
     echoinfo "Enabling Universal Repository ... "
-    __enable_universe_repository >> $LOG_BASE/templateproject-install.log 2>&1 || return 1
+    __enable_universe_repository >> $LOG_BASE/minimal-install.log 2>&1 || return 1
 
     echoinfo "Updating Repository Package List ..."
-    apt-get update >> $LOG_BASE/templateproject-install.log 2>&1 || return 1
+    apt-get update >> $LOG_BASE/minimal-install.log 2>&1 || return 1
 
     echoinfo "Upgrading all packages to latest version ..."
-    __apt_get_upgrade_noinput >> $LOG_BASE/templateproject-install.log 2>&1 || return 1
+    __apt_get_upgrade_noinput >> $LOG_BASE/minimal-install.log 2>&1 || return 1
 
     return 0
 }
@@ -166,7 +166,7 @@ libapache2-mod-uwsgi
 python-pip"
 
     for PACKAGE in $packages; do
-        __apt_get_install_noinput $PACKAGE >> $LOG_BASE/templateproject-install.log 2>&1
+        __apt_get_install_noinput $PACKAGE >> $LOG_BASE/minimal-install.log 2>&1
         ERROR=$?
         if [ $ERROR -ne 0 ]; then
             echoerror "Install Failure: $PACKAGE (Error Code: $ERROR)"
@@ -175,6 +175,100 @@ python-pip"
         fi
     done
     return 0
+}
+
+install_ubuntu_pip_packages() {
+
+    pip_packages="flask
+        python-magic"
+
+    ERROR=0
+
+    for PACKAGE in $pip_packages; do
+        CURRENT_ERROR=0
+        echoinfo "Installed Python Package: $PACKAGE"
+        __pip_install_noinput $PACKAGE >> $LOG_BASE/minimal-install.log 2>&1 || (let ERROR=ERROR+1 && let CURRENT_ERROR=1)
+        if [ $CURRENT_ERROR -eq 1 ]; then
+            echoerror "Python Package Install Failure: $PACKAGE"
+        fi
+    done
+
+    if [ $ERROR -ne 0 ]; then
+        echoerror
+        return 1
+    fi
+    return 0
+}
+
+create_directories() {
+  echoinfo "Creating the required directories..."
+  if [ -d "$WWW_ROOT" ]; then
+  	rm -rf "$WWW_ROOT"
+  fi
+   mkdir "$WWW_ROOT"
+   mkdir "$MINIMAL_ROOT"
+   chmod -R 777 "$MINIMAL_ROOT"
+   chown -R www-data:www-data "$MINIMAL_ROOT"
+}
+
+configure_webstack() {
+  echoinfo "Configuring web stack..."
+
+   # Temporary: Create and perm-fix log file
+  echoinfo "Preparing log file"
+  sudo touch /var/log/minimal.log
+  sudo chmod 666 /var/log/minimal.log
+
+  if [ -d "$WWW_ROOT/minimal" ]; then
+    rm -rf "$WWW_ROOT/minimal"
+  fi
+
+   mkdir -p "$WWW_ROOT/minimal/dynamic"
+   mkdir -p "$WWW_ROOT/minimal/static"
+   chown www-data:www-data "$WWW_ROOT/minimal/dynamic"
+   chown www-data:www-data "$WWW_ROOT/minimal/static"
+   chmod 777 "$WWW_ROOT/minimal/dynamic"
+   chmod 777 "$WWW_ROOT/minimal/static"
+
+   # Put the minimal python script in the right place
+   cp -f "$SOURCE_ROOT/minimal/dynamic/"*.py "$WWW_ROOT/minimal/dynamic"
+   chown www-data:www-data "$SOURCE_ROOT/minimal/dynamic/"*.py
+   cp -f "$SOURCE_ROOT/minimal/static/"*.py "$WWW_ROOT/minimal/static"
+   chown www-data:www-data "$SOURCE_ROOT/minimal/static/"*.py
+
+   # Copy over the wsgi file
+   cp -f "$SOURCE_ROOT/minimal/dynamic/"*.wsgi "$WWW_ROOT/minimal/dynamic"
+   chown www-data:www-data "$SOURCE_ROOT/minimal/dynamic/"*.wsgi
+   cp -f "$SOURCE_ROOT/minimal/static/"*.wsgi "$WWW_ROOT/minimal/static"
+   chown www-data:www-data "$SOURCE_ROOT/minimal/static/"*.wsgi
+
+   # Perms (fix)
+   chmod -R 777 "$WWW_ROOT/minimal/dynamic/"
+   chmod -R 777 "$WWW_ROOT/minimal/static/"
+
+   # Append host record to hosts file
+   cat "$SOURCE_ROOT/etc/hosts" >> "/etc/hosts"
+
+   # Copy over the configuration file
+   cp -f "$SOURCE_ROOT/etc/apache2/sites-available/"*.conf "/etc/apache2/sites-available"
+
+   # Enable the new virtual host and restart apache
+   echoinfo "Enabling vhost ..."
+   a2dissite 000-default.conf
+   a2ensite my.minimal.conf
+
+   echoinfo "Restarting apache2 ..."
+   systemctl restart apache2
+
+   # Give vagrant user access to www-data
+   usermod -a -G www-data vagrant
+
+}
+
+complete_message() {
+    echo
+    echo "Installation Complete!"
+    echo
 }
 
 OS=$(lsb_release -si)
@@ -187,7 +281,7 @@ if [ $OS != "Ubuntu" ]; then
 fi
 
 echoinfo "***********************************************************************"
-echoinfo "The script will now configure your system to run the templateproject Flask app."
+echoinfo "The script will now configure your system to run the minimal Flask app."
 echoinfo "***********************************************************************"
 echoinfo ""
 
@@ -200,4 +294,10 @@ export DEBIAN_FRONTEND=noninteractive
 
 # Install all dependencies and apt packages
 install_ubuntu_deps $ITYPE
-# install_ubuntu_packages $ITYPE
+install_ubuntu_packages $ITYPE
+
+# Configure and install everything else
+create_directories
+install_ubuntu_pip_packages $ITYPE
+configure_webstack
+complete_message

@@ -7,19 +7,7 @@
 
     - name: Install Ubuntu deps
       script: bootstrap.sh
+      register: out
 
-    - name: Install a list of apt packages
-      apt:
-        update_cache: yes
-        state: latest
-        pkg:
-        - apache2
-        - apache2-utils
-        - libapache2-mod-wsgi
-        - libexpat1
-        - ssl-cert
-        - libapache2-mod-uwsgi
-        - python-pip
-
-    - name: Install Python packages and remaining actions
-      script: post_script.sh
+    - debug: var=out.stdout_lines
+    - debug: var=out.stderr_lines
