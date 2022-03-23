@@ -21,7 +21,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.network "private_network", ip: "192.168.56.0"
 
     config.vm.provider :virtualbox do |vb|
-      vb.name = "hw1"
+      vb.name = "hw1myrandomvmv2"
       vb.memory = 2048
       vb.cpus = 2
     end
