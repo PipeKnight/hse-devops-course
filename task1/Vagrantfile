@@ -17,8 +17,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
     # Port forward HTTP (80) to host 2020
     config.vm.network :forwarded_port, :host => 5892, :guest => 80
-    #config.vm.network "private_network", ip: "192.168.38.52"
-    config.vm.network "private_network", ip: "192.168.56.0"
+    config.vm.network "private_network", ip: "192.168.38.52"
+    #config.vm.network "private_network", ip: "192.168.56.0"
 
     config.vm.provider :virtualbox do |vb|
       vb.name = "hw1myrandomvmv2"
