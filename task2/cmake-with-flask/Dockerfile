@@ -7,4 +7,5 @@ RUN pip3 install flask
 RUN cmake ./
 RUN make
 RUN adduser -S techproguser -s /bin/sh
+USER techproguser
 CMD ["python3", "/work/app.py", "--port", "5000", "--host", "0.0.0.0"]
