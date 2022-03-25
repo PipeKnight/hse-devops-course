@@ -1,4 +1,4 @@
-FROM tiangolo/uwsgi-nginx:python3.7
+FROM python:3.8-alpine
 COPY ./ /work
 WORKDIR /work
 RUN apk update
