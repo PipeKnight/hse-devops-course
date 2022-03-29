@@ -1,0 +1,13 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Install prerequisites
+      apt: name={{ item }} update_cache=yes state=latest force_apt_get=yes
+      loop: [ 'aptitude' ]
+
+    - name: Install Ubuntu deps
+      script: bootstrap.sh
+      register: out
+
+    - debug: var=out.stdout_lines
+    - debug: var=out.stderr_lines
